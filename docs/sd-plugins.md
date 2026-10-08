@@ -14,6 +14,10 @@ and the firmware carries no vendor names, URLs, or file-format knowledge.
     ...assets
 ```
 
+Local text-list apps under `/.crosspoint/apps/` are a separate, limited feature;
+see [Local SD-card apps](./local-apps.md). They are not plugins and do not run
+code from the SD card.
+
 **Discovery and the on-device list.** Every plugin folder (anything holding a
 `manifest.json`, `plugin.js`, or `device.json`) appears under **Settings →
 System → Plugins** on the reader, showing its `title` and one-line

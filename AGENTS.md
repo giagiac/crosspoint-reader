@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # CrossPoint Reader Development Guide
 
 Project: Open-source e-reader firmware for Xteink X4 (ESP32-C3)
@@ -12,6 +16,10 @@ Mission: Provide a lightweight, high-performance reading experience focused on E
 * No Unfounded Claims: Do not claim performance gains or memory savings without explaining the technical mechanism (e.g., DRAM vs IRAM usage).
 * Resource Justification: You must justify any new heap allocation (new, malloc, std::vector) or explain why a stack/static alternative was rejected.
 * Verification: After suggesting a fix, instruct the user on how to verify it (e.g., monitoring heap via Serial or checking a specific cache file).
+
+---
+
+**Related docs**: `CLAUDE.md` is a symlink to `AGENTS.md`; edit `AGENTS.md`. Repo-specific review skills live in `.skills/` and `.github/skills/`. Scope decisions: `SCOPE.md`, `ROADMAP.md`.
 
 ---
 
@@ -112,6 +120,7 @@ Never invoke or probe `clang-format` directly. The repository wrapper is the onl
   * `gh_release`: Production (LOG_LEVEL=0)
   * `gh_release_rc`: Release candidate (LOG_LEVEL=1)
   * `slim`: Minimal build (no serial logging)
+  * Other hardware targets, each with `-gh_release` / `-gh_release_rc` variants: `sticky` (ESP32-S3), `x4pro`, `x4c`, `papermono`
 
 ### Critical Build Flags
 
@@ -470,31 +479,15 @@ Constraint: Physical button positions are fixed on hardware, but their logical f
 
 ### Activity Lifecycle and Memory Management
 
-**Source**: [src/main.cpp:132-143](src/main.cpp)
+**Source**: [src/activities/ActivityManager.h](src/activities/ActivityManager.h), [docs/activity-manager.md](docs/activity-manager.md)
 
-**CRITICAL**: Activities are **heap-allocated** and **deleted on exit**.
-
-```cpp
-// main.cpp navigation pattern
-void exitActivity() {
-  if (currentActivity) {
-    currentActivity->onExit();
-    delete currentActivity;  // Activity deleted here!
-    currentActivity = nullptr;
-  }
-}
-
-void enterNewActivity(Activity* activity) {
-  currentActivity = activity;  // Heap-allocated activity
-  currentActivity->onEnter();
-}
-```
+**CRITICAL**: Activities are **heap-allocated** and **deleted on exit**. Navigation goes through the global `activityManager` (`goHome()`, `goToReader()`, `startActivityForResult()` / `setResult()` / `finish()`), which owns an activity stack and a single shared render task. Activities no longer create their own render tasks; `main.cpp` has no `exitActivity()`/`enterNewActivity()`.
 
 **Memory Implications**:
 
 - Activity navigation = `delete` old activity + `new` create next activity
 - Any memory allocated in `onEnter()` MUST be freed in `onExit()`
-- FreeRTOS tasks MUST be deleted in `onExit()` before activity destruction
+- Any FreeRTOS task an activity creates itself MUST be deleted in `onExit()` before activity destruction (rendering uses the shared `ActivityManager` task, so most activities need none)
 - Member `FsFile` handles MUST be closed in `onExit()` (local `FsFile` variables auto-close via destructor)
 
 **Activity Pattern**:
@@ -605,6 +598,20 @@ pio check
 # Format only Git-modified C/C++ files, on every host
 ./bin/clang-format-fix -g
 ```
+
+### Host Unit Tests
+
+Host-side gtest suites live in `test/<suite>/` (one CMake subdirectory per suite, registered in `test/CMakeLists.txt`). They build outside the ESP toolchain via CMake/CTest; gtest v1.17.0 is fetched on first run. Requires `cmake` and `ctest` on PATH.
+
+```bash
+# Build and run all suites (custom target from scripts/register_unit_tests_target.py)
+pio run -t unit-tests
+
+# Run a single suite (build dir is build/test)
+ctest --test-dir build/test -R <suite_name> --output-on-failure
+```
+
+New suites need an `add_subdirectory(<name>)` line in `test/CMakeLists.txt`.
 
 Do not run raw `clang-format` or probe it with `command -v`; use the wrapper even for diagnostics.
 
@@ -1003,8 +1010,10 @@ rm -rf /path/to/sd/.crosspoint/epub_<hash>/sections/
 
 **Current Versions** (as of docs/file-formats.md):
 
-- `book.bin`: **Version 7** (metadata structure)
-- `section.bin`: **Version 25** (layout structure)
+- `book.bin`: **Version 10** (`BOOK_CACHE_VERSION`, `lib/Epub/Epub/BookMetadataCache.cpp`)
+- `section.bin`: **Version 50** (`SECTION_FILE_VERSION`, `lib/Epub/Epub/Section.cpp`)
+
+These drift quickly; read the constants in source rather than trusting this list.
 
 **Version Increment Rules**:
 
@@ -1016,7 +1025,7 @@ rm -rf /path/to/sd/.crosspoint/epub_<hash>/sections/
 
 ```cpp
 // lib/Epub/Epub/Section.cpp
-static constexpr uint8_t SECTION_FILE_VERSION = 26;  // Was 25, now 26
+constexpr uint8_t SECTION_FILE_VERSION = 51;  // Was 50, now 51
 
 // Add new field to structure
 struct PageLine {
