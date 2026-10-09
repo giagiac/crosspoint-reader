@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "MappedInputManager.h"
+#include "activities/ActivityManager.h"
 #include "components/UITheme.h"
 
 namespace fui = freeink::ui;
@@ -42,8 +43,8 @@ bool LocalAppsActivity::isSafeDataFilename(const char* filename) {
   const size_t length = strlen(filename);
   if (length < 5 || strcmp(filename + length - 4, ".txt") != 0 || strstr(filename, "..")) return false;
   for (const unsigned char* p = reinterpret_cast<const unsigned char*>(filename); *p; ++p) {
-    const bool valid = (*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z') || (*p >= '0' && *p <= '9') ||
-                       *p == '_' || *p == '-' || *p == '.';
+    const bool valid = (*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z') || (*p >= '0' && *p <= '9') || *p == '_' ||
+                       *p == '-' || *p == '.';
     if (!valid) return false;
   }
   return true;
@@ -104,7 +105,7 @@ void LocalAppsActivity::scanApps() {
 }
 
 int LocalAppsActivity::listCount() const {
-  if (!showingApp) return std::max(1, static_cast<int>(apps.size()));
+  if (!showingApp) return static_cast<int>(apps.size()) + 1;  // + built-in Drive row
   if (invalidData || lineCount == 0) return 1;
   int count = pageLineCount;
   if (pageIndex > 0) ++count;
@@ -267,7 +268,7 @@ void LocalAppsActivity::provideRow(void* ctx, const uint16_t index, fui::ListIte
   auto* self = static_cast<LocalAppsActivity*>(ctx);
   item.actionValue = static_cast<int16_t>(index);
   if (!self->showingApp) {
-    item.label = self->apps.empty() ? tr(STR_NO_LOCAL_APPS) : self->apps[index].title.c_str();
+    item.label = index < self->apps.size() ? self->apps[index].title.c_str() : tr(STR_DRIVE_SHARE);
     return;
   }
   if (self->invalidData) {
@@ -315,7 +316,10 @@ void LocalAppsActivity::activateIndex(const int index) {
   RenderLock lock(*this);
   app.clearTapFlash();
   if (!showingApp) {
-    if (apps.empty()) return;
+    if (index == static_cast<int>(apps.size())) {
+      activityManager.goToDriveShare();
+      return;
+    }
     openApp(index);
     requestUpdate();
     return;

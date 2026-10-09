@@ -17,6 +17,7 @@
 #include "browser/OpdsBookBrowserActivity.h"
 #include "components/HeaderBackTapTarget.h"
 #include "home/CrashActivity.h"
+#include "home/DriveShareActivity.h"
 #include "home/FileBrowserActivity.h"
 #include "home/HomeActivity.h"
 #include "home/LocalAppsActivity.h"
@@ -294,6 +295,15 @@ void ActivityManager::goToLocalApps() {
   replaceActivity(std::move(activity));
 }
 
+void ActivityManager::goToDriveShare() {
+  auto activity = makeUniqueNoThrow<DriveShareActivity>(renderer, mappedInput);
+  if (!activity) {
+    LOG_ERR("ACT", "OOM: drive share activity");
+    return;
+  }
+  replaceActivity(std::move(activity));
+}
+
 void ActivityManager::goToBrowser() {
   const auto& servers = OPDS_STORE.getServers();
   // Skip the server picker when there's only one server configured
@@ -349,6 +359,8 @@ void ActivityManager::goHome(HomeMenuItem initialMenuItem, bool cleanInitialRefr
     } else if (activityName == "Library") {
       initialMenuItem = HomeMenuItem::LIBRARY;
     } else if (activityName == "LocalApps") {
+      initialMenuItem = HomeMenuItem::LOCAL_APPS;
+    } else if (activityName == "DriveShare") {
       initialMenuItem = HomeMenuItem::LOCAL_APPS;
     } else if (activityName == "OpdsBookBrowser") {
       initialMenuItem = HomeMenuItem::OPDS_BROWSER;
