@@ -46,6 +46,8 @@
 #include "html/js/jszip_minJs.generated.h"
 #include "util/BookCacheUtils.h"
 #include "util/DictionaryRegistry.h"
+#include "util/DriveFolder.h"
+#include "util/DriveShareConfig.h"
 #include "util/PluginHttp.h"
 #include "util/PluginLocations.h"
 #include "util/TaskWatchdog.h"
@@ -235,6 +237,10 @@ void CrossPointWebServer::begin() {
   server->on("/api/opds", HTTP_GET, [this] { handleGetOpdsServers(); });
   server->on("/api/opds", HTTP_POST, [this] { handlePostOpdsServer(); });
   server->on("/api/opds/delete", HTTP_POST, [this] { handleDeleteOpdsServer(); });
+
+  // Google Drive share folder (Apps > Drive)
+  server->on("/api/drive", HTTP_GET, [this] { handleGetDriveConfig(); });
+  server->on("/api/drive", HTTP_POST, [this] { handlePostDriveConfig(); });
 
   // Browser-side plugins (JS on the SD card) + their generic capabilities.
   server->on("/api/plugins", HTTP_GET, [this] { handlePluginList(); });
@@ -1626,6 +1632,65 @@ void CrossPointWebServer::handleDeleteOpdsServer() {
 
   OPDS_STORE.removeServer(static_cast<size_t>(idx));
   LOG_DBG("WEB", "Deleted OPDS server at index %d", idx);
+  server->send(200, "text/plain", "OK");
+}
+
+// ---- Google Drive share API ----
+
+void CrossPointWebServer::handleGetDriveConfig() const {
+  std::string folderId;
+  const bool configured = DriveShareConfig::load(folderId);
+
+  JsonDocument doc;
+  doc["configured"] = configured;
+  doc["folderId"] = configured ? folderId : std::string();
+  char output[192];
+  const size_t written = serializeJson(doc, output, sizeof(output));
+  if (written >= sizeof(output)) {
+    server->send(500, "text/plain", "Response too large");
+    return;
+  }
+  server->send(200, "application/json", output);
+}
+
+// Body: {"folderId": "<id or share link>"}; an empty value clears the setting.
+void CrossPointWebServer::handlePostDriveConfig() {
+  if (!server->hasArg("plain")) {
+    server->send(400, "text/plain", "Missing JSON body");
+    return;
+  }
+
+  JsonDocument doc;
+  const DeserializationError err = deserializeJson(doc, server->arg("plain"));
+  if (err) {
+    server->send(400, "text/plain", String("Invalid JSON: ") + err.c_str());
+    return;
+  }
+
+  std::string input = doc["folderId"] | std::string("");
+  while (!input.empty() && isspace(static_cast<unsigned char>(input.back()))) input.pop_back();
+  while (!input.empty() && isspace(static_cast<unsigned char>(input.front()))) input.erase(input.begin());
+
+  if (input.empty()) {
+    if (!DriveShareConfig::clear()) {
+      server->send(500, "text/plain", "Could not clear the setting");
+      return;
+    }
+    LOG_DBG("WEB", "Cleared Drive share setting");
+    server->send(200, "text/plain", "OK");
+    return;
+  }
+
+  std::string folderId;
+  if (!DriveFolder::extractFolderId(input, folderId)) {
+    server->send(400, "text/plain", "Invalid Google Drive folder code or link");
+    return;
+  }
+  if (!DriveShareConfig::save(folderId)) {
+    server->send(500, "text/plain", "Could not save the setting");
+    return;
+  }
+  LOG_DBG("WEB", "Saved Drive share setting");
   server->send(200, "text/plain", "OK");
 }
 

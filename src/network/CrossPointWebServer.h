@@ -142,6 +142,8 @@ class CrossPointWebServer {
   void handleGetOpdsServers() const;
   void handlePostOpdsServer();
   void handleDeleteOpdsServer();
+  void handleGetDriveConfig() const;
+  void handlePostDriveConfig();
 
   // Wi-Fi credential handlers
   void handleGetWifiNetworks() const;

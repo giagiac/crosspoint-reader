@@ -6,8 +6,21 @@ the local text-list apps described in [local-apps.md](local-apps.md).
 
 ## Configuration
 
-The app folder on the SD card is `/.crosspoint/apps/drive-share/`. On first
-launch the firmware creates `config.json` there with an example share:
+Drive has no built-in folder. Set it from the device web page:
+
+1. Open the web page: start **File Transfer** in hotspot mode and connect to the
+   device hotspot, or connect the device to Wi-Fi and browse to its IP address.
+2. Go to **Settings > Google Drive**.
+3. Enter the folder code, i.e. the last part of the share link
+   `https://drive.google.com/drive/folders/<code>?usp=sharing` (for example
+   `199fXhNtfxjrxpfR8fgpPQOaRYKhGhjIb`). The whole link is accepted too.
+4. **Save**. **Clear** removes the setting.
+
+The folder must be shared as "Anyone with the link". Until a folder is set,
+**Apps > Drive** shows "Drive is not configured" with these instructions; after
+saving, press **Retry** on the device.
+
+The setting is stored in `/.crosspoint/apps/drive-share/config.json`:
 
 ```json
 {
@@ -15,19 +28,22 @@ launch the firmware creates `config.json` there with an example share:
 }
 ```
 
-Edit `share_url` on the SD card to point at your own folder. The folder must be
-shared as "Anyone with the link". A bare folder id is also accepted. Invalid or
-unreadable configuration shows an error instead of the list.
+The file can also be edited on the SD card; a bare folder id is accepted as
+`share_url`. The API is documented in [webserver-endpoints.md](webserver-endpoints.md).
 
 ## Use
 
 1. Open **Apps** from the Home screen, then **Drive**; connect to Wi-Fi if prompted.
-2. The folder content is listed. Sub-folders (`>`) open in place; Back goes up
+2. The first row, **Refresh**, reloads the list from Drive (reconnecting to
+   Wi-Fi if needed) and shows when it was last synced (`Last sync: DD/MM HH:MM`,
+   from the clock; omitted if the clock is not set). Use it after waking from
+   standby, when the list may be out of date.
+3. The folder content is listed. Sub-folders (`>`) open in place; Back goes up
    and, at the top level, returns to the Apps list.
-3. Select a file and confirm the **Save to SD root?** popup. The file is
+4. Select a file and confirm the **Save to SD root?** popup. The file is
    downloaded to `/<file name>` (name sanitized for FAT) and replaces an
    existing file with the same name only when the download completes.
-4. Saved files appear in the file browser and library and can be opened by the
+5. Saved files appear in the file browser and library and can be opened by the
    reader like any other file.
 
 ## Notes

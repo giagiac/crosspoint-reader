@@ -18,6 +18,8 @@ struct Entry {
 // A bare id is accepted too. Returns false unless the id is a plausible Drive id.
 bool extractFolderId(const std::string& shareUrl, std::string& folderId);
 
+// Canonical share link for a folder id (what the config file stores).
+std::string shareUrl(const std::string& folderId);
 std::string listingUrl(const std::string& folderId);
 std::string downloadUrl(const std::string& fileId);
 

@@ -302,6 +302,7 @@
 
   <div id="wifi-container"></div>
   <div id="opds-container"></div>
+  <div id="drive-container"></div>
   <div id="plugin-container"></div>
 
   <div class="card">
@@ -814,6 +815,7 @@
       if (!resp.ok) throw new Error(await resp.text());
       showMessage('OPDS server saved!', false);
       await loadOpdsServers();
+    await loadDriveConfig();
     } catch (e) {
       showMessage('Error: ' + e.message, true);
     }
@@ -835,12 +837,83 @@
     }
   }
 
+  // --- Google Drive share ---
+  // The folder code is the last part of the share link:
+  // https://drive.google.com/drive/folders/<code>?usp=sharing
+  // Used by Apps > Drive on the device. A full link is accepted too.
+  let driveConfig = { configured: false, folderId: '', state: 'loading' };
+
+  function renderDriveSection() {
+    const status = driveConfig.state === 'loading' ? 'Loading...'
+      : driveConfig.state === 'error' ? 'Could not read the setting from the device. Reload the page; if this persists, update the firmware.'
+      : driveConfig.configured ? 'Configured. Apps &gt; Drive lists this folder.'
+      : 'Not configured. Apps &gt; Drive on the device asks for this setting.';
+    document.getElementById('drive-container').innerHTML =
+      '<div class="card"><h2>Google Drive</h2>' +
+        '<p style="color:var(--label-color);margin-top:0;">' + status + '</p>' +
+        '<div class="setting-row">' +
+          '<span class="setting-name">Folder code</span>' +
+          '<span class="setting-control"><input type="text" id="drive-folder" placeholder="199fXhNtfxjrxpfR8fgpPQOaRYKhGhjIb" ' +
+            'autocapitalize="off" autocomplete="off" spellcheck="false" value="' + escapeHtml(driveConfig.folderId || '') + '"></span>' +
+        '</div>' +
+        '<p style="color:var(--label-color);font-size:0.9em;">The folder must be shared as "Anyone with the link". ' +
+          'Paste the code from the link (drive.google.com/drive/folders/<b>code</b>) or the whole link.</p>' +
+        '<div class="opds-actions">' +
+          '<button class="btn-small btn-save-server" onclick="saveDriveConfig()">Save</button>' +
+          (driveConfig.configured ? '<button class="btn-small btn-delete" onclick="clearDriveConfig()">Clear</button>' : '') +
+        '</div>' +
+      '</div>';
+  }
+
+  async function loadDriveConfig() {
+    try {
+      const resp = await fetch('/api/drive');
+      if (!resp.ok) throw new Error('Failed to load');
+      driveConfig = await resp.json();
+      driveConfig.state = 'ready';
+    } catch (e) {
+      console.error('Drive load error:', e);
+      driveConfig = { configured: false, folderId: '', state: 'error' };
+    }
+    renderDriveSection();
+  }
+
+  async function postDriveConfig(value, okMessage) {
+    try {
+      const resp = await fetch('/api/drive', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({folderId: value})
+      });
+      if (!resp.ok) throw new Error(await resp.text());
+      showMessage(okMessage, false);
+      await loadDriveConfig();
+    } catch (e) {
+      showMessage('Error: ' + e.message, true);
+    }
+  }
+
+  function saveDriveConfig() {
+    const value = document.getElementById('drive-folder').value.trim();
+    if (!value) {
+      showMessage('Enter the folder code, or use Clear to remove it.', true);
+      return;
+    }
+    postDriveConfig(value, 'Google Drive folder saved!');
+  }
+
+  function clearDriveConfig() {
+    if (!confirm('Remove the Google Drive folder?')) return;
+    postDriveConfig('', 'Google Drive folder removed');
+  }
+
 <!--#include file="shared/PluginHost.js.inc" -->
 
   // Sequential, not concurrent: the device's web server handles one client
   // connection at a time, and simultaneous fetches on page load can
   // stall long enough inside a single response to trip the firmware watchdog.
   (async () => {
+    renderDriveSection();
     await loadSettings();
     await loadWifiNetworks();
     await loadOpdsServers();

@@ -60,6 +60,10 @@ bool extractFolderId(const std::string& shareUrl, std::string& folderId) {
   return true;
 }
 
+std::string shareUrl(const std::string& folderId) {
+  return "https://drive.google.com/drive/folders/" + folderId + "?usp=sharing";
+}
+
 std::string listingUrl(const std::string& folderId) {
   return "https://drive.google.com/embeddedfolderview?id=" + folderId;
 }

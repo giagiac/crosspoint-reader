@@ -374,6 +374,34 @@ curl -X POST \
   http://crosspoint.local/api/opds/delete
 ```
 
+## Google Drive API
+
+Setting used by **Apps > Drive** on the device (see [drive-share.md](drive-share.md)).
+
+### `GET /api/drive`
+
+Returns whether a Drive folder is configured and its folder code.
+
+```bash
+curl http://crosspoint.local/api/drive
+```
+
+```json
+{"configured":true,"folderId":"199fXhNtfxjrxpfR8fgpPQOaRYKhGhjIb"}
+```
+
+### `POST /api/drive`
+
+Saves the folder. `folderId` accepts the folder code or the whole share link; an
+empty string removes the setting. Invalid values return `400`.
+
+```bash
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"folderId":"199fXhNtfxjrxpfR8fgpPQOaRYKhGhjIb"}' \
+  http://crosspoint.local/api/drive
+```
+
 ## Wi-Fi Credential API
 
 ### `GET /api/wifi`

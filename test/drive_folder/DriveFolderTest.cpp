@@ -12,7 +12,8 @@ constexpr char SAMPLE[] =
     "<div class=\"flip-entries\">"
     "<div class=\"flip-entry\" id=\"entry-1AbCdEfGhIjKlMnOpQrStUvWxYz012\" tabindex=\"0\">"
     "<a href=\"https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012/view?usp=drive_web\">"
-    "<div class=\"flip-entry-info\"><div class=\"flip-entry-title\">Tom &amp; Jerry&#39;s book.epub</div></div></a></div>"
+    "<div class=\"flip-entry-info\"><div class=\"flip-entry-title\">Tom &amp; Jerry&#39;s "
+    "book.epub</div></div></a></div>"
     "<div class=\"flip-entry\" id=\"entry-2ZyXwVuTsRqPoNmLkJiHgFeDcBa987\" tabindex=\"0\">"
     "<a href=\"https://drive.google.com/drive/folders/2ZyXwVuTsRqPoNmLkJiHgFeDcBa987\">"
     "<div class=\"flip-entry-info\"><div class=\"flip-entry-title\">Sub folder</div></div></a></div>"
@@ -38,6 +39,12 @@ TEST(DriveFolder, RejectsInvalidUrls) {
   EXPECT_FALSE(DriveFolder::extractFolderId("https://example.com/page", id));
   EXPECT_FALSE(DriveFolder::extractFolderId("https://drive.google.com/drive/folders/", id));
   EXPECT_FALSE(DriveFolder::extractFolderId("https://drive.google.com/drive/folders/short", id));
+}
+
+TEST(DriveFolder, ShareUrlRoundTripsThroughExtraction) {
+  std::string id;
+  ASSERT_TRUE(DriveFolder::extractFolderId(DriveFolder::shareUrl("199fXhNtfxjrxpfR8fgpPQOaRYKhGhjIb"), id));
+  EXPECT_EQ(id, "199fXhNtfxjrxpfR8fgpPQOaRYKhGhjIb");
 }
 
 TEST(DriveFolder, ParsesFilesAndFolders) {
